@@ -13,17 +13,35 @@ public sealed class AudioPipeline : IDisposable
 
     private AudioCapture? _capture;
     private AudioOutput? _output;
+    private AudioLoopbackCapture? _loopback;
     private readonly NoiseFilter _filter;
+    private readonly AcousticEchoCanceler _aec;
     private readonly List<float> _ringBuffer = new(capacity: FrameSize * 4);
 
     private bool _isRunning;
     private int _inputDeviceIndex;
     private int _outputDeviceIndex = -1;
+    private bool _aecEnabled;
 
     public event EventHandler<float[]>? AudioProcessed;
     public event EventHandler<LevelData>? LevelChanged;
 
     public bool IsRunning => _isRunning;
+    public bool AecEnabled
+    {
+        get => _aecEnabled;
+        set
+        {
+            if (_aecEnabled == value) return;
+            _aecEnabled = value;
+            _aec.IsEnabled = value;
+            if (_isRunning)
+            {
+                Stop();
+                Start();
+            }
+        }
+    }
     public bool NoiseFilterEnabled
     {
         get => _filter.IsEnabled;
@@ -54,6 +72,7 @@ public sealed class AudioPipeline : IDisposable
     public AudioPipeline()
     {
         _filter = new NoiseFilter();
+        _aec = new AcousticEchoCanceler();
     }
 
     public void Start()
@@ -64,6 +83,15 @@ public sealed class AudioPipeline : IDisposable
         _capture.AudioDataAvailable += OnAudioData;
         _output.Start(_capture.WaveFormat, _outputDeviceIndex);
         _capture.Start();
+
+        if (_aecEnabled)
+        {
+            _aec.Reset();
+            _loopback = new AudioLoopbackCapture();
+            _loopback.FrameAvailable += OnLoopbackFrame;
+            _loopback.Start();
+        }
+
         _isRunning = true;
     }
 
@@ -74,7 +102,21 @@ public sealed class AudioPipeline : IDisposable
             _capture.AudioDataAvailable -= OnAudioData;
         _capture?.Stop();
         _output?.Stop();
+
+        if (_loopback is not null)
+        {
+            _loopback.FrameAvailable -= OnLoopbackFrame;
+            _loopback.Stop();
+            _loopback.Dispose();
+            _loopback = null;
+        }
+
         _isRunning = false;
+    }
+
+    private void OnLoopbackFrame(object? sender, float[] frame)
+    {
+        _aec.AddReference(frame);
     }
 
     private void OnAudioData(object? sender, byte[] rawData)
@@ -92,7 +134,12 @@ public sealed class AudioPipeline : IDisposable
             _ringBuffer.RemoveRange(0, FrameSize);
 
             inputRms = Math.Sqrt(frame.Average(s => s * s));
-            var clean = _filter.Process(frame.ToArray());
+
+            var processed = _aecEnabled
+                ? _aec.Process(frame.ToArray())
+                : frame.ToArray();
+
+            var clean = _filter.Process(processed);
             outputRms = Math.Sqrt(clean.Average(s => s * s));
 
             outputFrames.AddRange(clean);
@@ -141,6 +188,7 @@ public sealed class AudioPipeline : IDisposable
     public void Dispose()
     {
         Stop();
+        _loopback?.Dispose();
         _capture?.Dispose();
         _output?.Dispose();
         _filter.Dispose();

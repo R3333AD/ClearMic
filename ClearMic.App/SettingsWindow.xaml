@@ -24,6 +24,9 @@
         <GroupBox Header="Filtre" Grid.Row="1" Margin="0,0,0,10">
             <StackPanel>
                 <CheckBox x:Name="NoiseFilterCheck" Content="Suppression de bruit" IsChecked="True" />
+                <CheckBox x:Name="AecCheck" Content="Annulation d'écho (AEC)" Margin="0,6,0,0" />
+                <TextBlock Text="Nécessite un redémarrage du pipeline" FontSize="10"
+                           Foreground="#a6adc8" Margin="20,2,0,0" />
             </StackPanel>
         </GroupBox>
 

@@ -17,6 +17,11 @@ public sealed class PipelineService : IDisposable
     public bool IsRunning => _pipeline.IsRunning;
     public int InputDeviceIndex => _pipeline.InputDeviceIndex;
     public int OutputDeviceIndex => _pipeline.OutputDeviceIndex;
+    public bool AecEnabled
+    {
+        get => _pipeline.AecEnabled;
+        set => _pipeline.AecEnabled = value;
+    }
 
     public PipelineService()
     {
@@ -58,6 +63,7 @@ public sealed class PipelineService : IDisposable
             {
                 InputDevice = _pipeline.InputDeviceIndex,
                 OutputDevice = _pipeline.OutputDeviceIndex,
+                AecEnabled = _pipeline.AecEnabled,
             });
             File.WriteAllText(SettingsPath, json);
         }
@@ -76,6 +82,7 @@ public sealed class PipelineService : IDisposable
                 {
                     _pipeline.InputDeviceIndex = s.InputDevice;
                     _pipeline.OutputDeviceIndex = s.OutputDevice;
+                    _pipeline.AecEnabled = s.AecEnabled;
                 }
             }
         }
@@ -99,5 +106,6 @@ public sealed class PipelineService : IDisposable
     {
         public int InputDevice { get; set; }
         public int OutputDevice { get; set; }
+        public bool AecEnabled { get; set; }
     }
 }

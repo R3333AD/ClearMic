@@ -25,6 +25,7 @@ public partial class SettingsWindow : Window
         OutputDeviceCombo.SelectedIndex = outIdx < outputs.Length ? outIdx : 0;
 
         NoiseFilterCheck.IsChecked = true;
+        AecCheck.IsChecked = _pipeline.AecEnabled;
     }
 
     private void OnSaveClick(object sender, RoutedEventArgs e)
@@ -33,6 +34,7 @@ public partial class SettingsWindow : Window
             _pipeline.SetInputDevice(InputDeviceCombo.SelectedIndex);
         if (OutputDeviceCombo.SelectedIndex >= 0)
             _pipeline.SetOutputDevice(OutputDeviceCombo.SelectedIndex);
+        _pipeline.AecEnabled = AecCheck.IsChecked == true;
         _pipeline.SaveSettings();
         DialogResult = true;
         Close();
