@@ -11,6 +11,7 @@ public sealed class TrayIcon : IDisposable
     private readonly MainWindow _window;
     private readonly PipelineService _pipeline;
     private Icon? _currentIcon;
+    private readonly System.Windows.Controls.MenuItem _profileMenu;
 
     public TrayIcon(PipelineService pipeline)
     {
@@ -25,12 +26,19 @@ public sealed class TrayIcon : IDisposable
 
         _pipeline.StateChanged += OnStateChanged;
         _pipeline.LevelChanged += OnLevelChanged;
+        _pipeline.ProfileChanged += OnProfileChanged;
+        _pipeline.Profiles.ProfileSwitched += OnProfileSwitched;
         _tray.TrayMouseDoubleClick += (_, _) => ToggleWindow();
 
         var menu = new System.Windows.Controls.ContextMenu();
+
         var toggleItem = new System.Windows.Controls.MenuItem { Header = "Activer/Désactiver" };
         toggleItem.Click += (_, _) => _pipeline.Toggle();
         menu.Items.Add(toggleItem);
+
+        _profileMenu = new System.Windows.Controls.MenuItem { Header = "Profil" };
+        RebuildProfileMenu();
+        menu.Items.Add(_profileMenu);
 
         var settingsItem = new System.Windows.Controls.MenuItem { Header = "Paramètres" };
         settingsItem.Click += (_, _) => ShowSettings();
@@ -57,6 +65,40 @@ public sealed class TrayIcon : IDisposable
             _window.Hide();
         else
             _window.Show();
+    }
+
+    private void RebuildProfileMenu()
+    {
+        _profileMenu.Items.Clear();
+
+        foreach (var profile in _pipeline.Profiles.Profiles)
+        {
+            var item = new System.Windows.Controls.MenuItem
+            {
+                Header = profile.Name,
+                IsChecked = profile.Name == _pipeline.Profiles.ActiveName,
+                IsCheckable = true,
+            };
+            var name = profile.Name; // capture for closure
+            item.Click += (_, _) => _pipeline.SwitchProfile(name);
+            _profileMenu.Items.Add(item);
+        }
+
+        _profileMenu.Items.Add(new System.Windows.Controls.Separator());
+
+        var manageItem = new System.Windows.Controls.MenuItem { Header = "Gérer les profils..." };
+        manageItem.Click += (_, _) => ShowProfileSettings();
+        _profileMenu.Items.Add(manageItem);
+    }
+
+    private void OnProfileSwitched(object? sender, Profile profile)
+    {
+        RebuildProfileMenu();
+    }
+
+    private void OnProfileChanged(object? sender, string name)
+    {
+        RebuildProfileMenu();
     }
 
     private void OnStateChanged(object? sender, bool running)
@@ -94,12 +136,23 @@ public sealed class TrayIcon : IDisposable
         var settings = new SettingsWindow(_pipeline);
         settings.Owner = _window;
         settings.ShowDialog();
+        RebuildProfileMenu();
+    }
+
+    private void ShowProfileSettings()
+    {
+        var win = new ProfileSettingsWindow(_pipeline);
+        win.Owner = _window;
+        win.ShowDialog();
+        RebuildProfileMenu();
     }
 
     public void Dispose()
     {
         _pipeline.StateChanged -= OnStateChanged;
         _pipeline.LevelChanged -= OnLevelChanged;
+        _pipeline.ProfileChanged -= OnProfileChanged;
+        _pipeline.Profiles.ProfileSwitched -= OnProfileSwitched;
         _tray.Dispose();
         _window.Close();
         if (_currentIcon is not null)

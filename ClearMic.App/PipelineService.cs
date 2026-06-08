@@ -7,13 +7,18 @@ namespace ClearMic.App;
 public sealed class PipelineService : IDisposable
 {
     private readonly AudioPipeline _pipeline;
+    private readonly ProfileManager _profiles;
+    private readonly System.Timers.Timer _autoSwitchTimer;
     private bool _disposed;
-    private static readonly string SettingsPath = Path.Combine(
+    private static readonly string SettingsDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "ClearMic", "settings.json");
+        "ClearMic");
+    private static readonly string SettingsPath = Path.Combine(SettingsDir, "settings.json");
 
     public event EventHandler<bool>? StateChanged;
     public event EventHandler<LevelData>? LevelChanged;
+    public event EventHandler<string>? ProfileChanged;
+
     public bool IsRunning => _pipeline.IsRunning;
     public int InputDeviceIndex => _pipeline.InputDeviceIndex;
     public int OutputDeviceIndex => _pipeline.OutputDeviceIndex;
@@ -22,11 +27,25 @@ public sealed class PipelineService : IDisposable
         get => _pipeline.AecEnabled;
         set => _pipeline.AecEnabled = value;
     }
+    public ProfileManager Profiles => _profiles;
+    public AudioPipeline Pipeline => _pipeline;
 
     public PipelineService()
     {
         _pipeline = new AudioPipeline();
+        _profiles = new ProfileManager(SettingsDir);
         _pipeline.LevelChanged += OnLevelChanged;
+
+        // Restore active profile
+        var active = _profiles.ActiveProfile;
+        _profiles.Apply(active, _pipeline);
+
+        // Auto-switch timer (every 2s)
+        _autoSwitchTimer = new System.Timers.Timer(2000);
+        _autoSwitchTimer.Elapsed += (_, _) => CheckAutoSwitch();
+        _autoSwitchTimer.AutoReset = true;
+        _autoSwitchTimer.Start();
+
         LoadSettings();
     }
 
@@ -51,6 +70,21 @@ public sealed class PipelineService : IDisposable
     {
         _pipeline.Stop();
         StateChanged?.Invoke(this, false);
+    }
+
+    public void SwitchProfile(string name)
+    {
+        _profiles.SwitchTo(name, _pipeline);
+        SaveSettings();
+        ProfileChanged?.Invoke(this, name);
+    }
+
+    private void CheckAutoSwitch()
+    {
+        if (!_pipeline.IsRunning) return;
+        var match = _profiles.MatchForegroundWindow();
+        if (match is not null && match.Name != _profiles.ActiveName)
+            SwitchProfile(match.Name);
     }
 
     public void SaveSettings()
@@ -98,6 +132,9 @@ public sealed class PipelineService : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _autoSwitchTimer.Stop();
+        _autoSwitchTimer.Dispose();
+        _profiles.Save();
         SaveSettings();
         _pipeline.Dispose();
     }
