@@ -1,0 +1,85 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="ClearMic APO"
+           Version="1.0.0"
+           Manufacturer="ClearMic Contributors"
+           UpgradeCode="63cd9773-34ab-48f5-9193-85eda9f85ffd">
+
+    <SummaryInformation Description="ClearMic APO - Real-time microphone noise reduction" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of ClearMic is already installed." />
+
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Feature Id="ProductFeature" Title="ClearMic APO" Level="1">
+      <ComponentGroupRef Id="ApoDll" />
+      <ComponentGroupRef Id="ApoHostFiles" />
+      <ComponentGroupRef Id="ModelFiles" />
+    </Feature>
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="ClearMic">
+        <Directory Id="ApoHostDir" Name="ApoHost" />
+        <Directory Id="ModelsDir" Name="models" />
+      </Directory>
+    </StandardDirectory>
+  </Package>
+
+  <!-- ClearMicApo.dll with COM registration -->
+  <Fragment>
+    <ComponentGroup Id="ApoDll" Directory="INSTALLFOLDER">
+      <Component Guid="8e28e800-ace7-4e82-97e0-f4b71226260c" Bitness="always64">
+        <File Source="ClearMic.Driver\bin\x64\Release\ClearMicApo.dll" KeyPath="yes" />
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{7C538B0F-709F-4CBF-8E2A-EBCD11DB6B7B}">
+          <RegistryValue Value="ClearMic APO" Type="string" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{7C538B0F-709F-4CBF-8E2A-EBCD11DB6B7B}\InprocServer32">
+          <RegistryValue Value="[INSTALLFOLDER]ClearMicApo.dll" Type="string" />
+          <RegistryValue Name="ThreadingModel" Value="Both" Type="string" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM"
+                     Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion\Audio\ProcessingObjects\{7C538B0F-709F-4CBF-8E2A-EBCD11DB6B7B}">
+          <RegistryValue Value="ClearMic Noise Reduction" Type="string" />
+          <RegistryValue Name="Flags" Value="14" Type="integer" />
+          <RegistryValue Name="MaxInputConnections" Value="1" Type="integer" />
+          <RegistryValue Name="MaxOutputConnections" Value="1" Type="integer" />
+          <RegistryValue Name="MinInputConnectionBufferSize" Value="480" Type="integer" />
+          <RegistryValue Name="MaxInputConnectionBufferSize" Value="480" Type="integer" />
+          <RegistryValue Name="MinOutputConnectionBufferSize" Value="480" Type="integer" />
+          <RegistryValue Name="MaxOutputConnectionBufferSize" Value="480" Type="integer" />
+        </RegistryKey>
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <!-- ApoHost files -->
+  <Fragment>
+    <ComponentGroup Id="ApoHostFiles" Directory="ApoHostDir">
+      <Component Guid="f904e8c3-9578-40d7-9046-82009e3b8652" Bitness="always64">
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\ClearMic.ApoHost.dll" KeyPath="yes" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\ClearMic.ApoHost.exe" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\ClearMic.ApoHost.runtimeconfig.json" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\ClearMic.ApoHost.deps.json" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\ClearMic.Core.dll" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\CommunityToolkit.Mvvm.dll" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\Microsoft.ML.OnnxRuntime.dll" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\NAudio.dll" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\NAudio.Asio.dll" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\NAudio.Core.dll" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\NAudio.Midi.dll" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\NAudio.Wasapi.dll" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\NAudio.WinForms.dll" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\NAudio.WinMM.dll" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\onnxruntime.dll" />
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\onnxruntime_providers_shared.dll" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <!-- Model -->
+  <Fragment>
+    <ComponentGroup Id="ModelFiles" Directory="ModelsDir">
+      <Component Guid="2542fd93-3352-4530-9723-b45cb8e65742" Bitness="always64">
+        <File Source="ClearMic.ApoHost\bin\Release\net8.0-windows\publish\models\denoiser_model.onnx" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

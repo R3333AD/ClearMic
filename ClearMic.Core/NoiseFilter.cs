@@ -194,12 +194,14 @@ public sealed class NoiseFilter : IDisposable
     private static string FindModelPath()
     {
         var baseDir = AppContext.BaseDirectory;
+        var progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
         var candidates = new[]
         {
             Path.Combine(baseDir, "models", "denoiser_model.onnx"),
             Path.Combine(baseDir, "denoiser_model.onnx"),
             Path.Combine(Environment.CurrentDirectory, "models", "denoiser_model.onnx"),
             Path.Combine(Environment.CurrentDirectory, "..", "..", "..", "..", "..", "models", "denoiser_model.onnx"),
+            Path.Combine(progFiles, "ClearMic", "models", "denoiser_model.onnx"),
         };
         foreach (var path in candidates)
         {

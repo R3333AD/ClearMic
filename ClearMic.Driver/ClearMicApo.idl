@@ -1,0 +1,19 @@
+import "oaidl.idl";
+import "ocidl.idl";
+
+[
+    uuid(68A092AC-B95A-4358-BC4F-283105EC5138),
+    version(1.0),
+    helpstring("ClearMic Audio Processing Object")
+]
+library ClearMicApoLib
+{
+    importlib("stdole2.tlb");
+    [
+        uuid(7C538B0F-709F-4CBF-8E2A-EBCD11DB6B7B)
+    ]
+    coclass ClearMicApo
+    {
+        [default] interface IUnknown;
+    }
+};

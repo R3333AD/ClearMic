@@ -6,3 +6,11 @@ obj/
 packages/
 *.nupkg
 *.wav
+x64/
+*.obj
+*.pdb
+*.tlog
+*.recipe
+*.lastbuildstate
+*.FileListAbsolute.txt
+error.txt

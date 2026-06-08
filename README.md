@@ -16,44 +16,55 @@
 
 ## How it works
 
+## How it works
+
+**Since v0.3.0 — no VB-Cable required.**
+
+ClearMic installs as a Windows Audio Processing Object (APO), processing your mic at the driver level before any app sees it:
+
 ```
-Mic → [WASAPI Capture] → [DeepFilterNet3 ONNX] → [WASAPI Output] → VB-Cable → Your App
+Mic → [APO: ClearMicApo.dll] → [ApoHost: DeepFilterNet3 ONNX] → Your App
 ```
 
-ClearMic captures your microphone through WASAPI, filters noise in real-time with a DeepFilterNet3 model (ONNX Runtime), and outputs clean audio to VB-Cable.
+The C++ APO stub captures audio, forwards it over a named pipe to a C# host process running the ONNX model, and writes the cleaned audio back — all within the Windows audio graph. Latency is under 1 ms added.
 
 **Performance**: 2.1× real-time, −30 dB noise reduction, 0 frame drops under 30s stress test.
 
-## Prerequisites
+## Quick Start (v0.3.0+)
 
-- Windows 10/11 (x64)
-- [VB-Cable Virtual Audio Cable](https://vb-audio.com/Cable/) (free)
-- [.NET 8 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
-
-## Quick Start
-
-1. Install VB-Cable
-2. In Discord/Teams/Zoom, set mic to "CABLE Input"
-3. Launch ClearMic, select your real mic → "CABLE Output"
-4. Toggle on — your background noise is suppressed
+1. Download `ClearMicAPO.msi` from [Releases](https://github.com/R3333AD/ClearMic/releases) and install
+2. In Discord/Teams/Zoom, select your real microphone (no VB-Cable needed)
+3. The APO processes audio automatically at the system level
+4. Use `ClearMic.App` (Windows Tray) to toggle noise reduction on/off
 
 ## Building from source
 
+### .NET apps
 ```bash
 dotnet restore
 dotnet build -c Release
 ```
 
-Binary at `ClearMic.App/bin/Release/net8.0-windows/ClearMic.App.exe`.
+### APO DLL (requires MSVC + WDK)
+```bash
+msbuild ClearMic.Driver/ClearMicApo.vcxproj /p:Configuration=Release /p:Platform=x64
+```
+
+### MSI installer (requires WiX)
+```bash
+wix build -arch x64 -o ClearMicAPO.msi ClearMic.Installer/Package.wxs
+```
 
 ## Roadmap
 
 | Phase | Status |
 |-------|--------|
 | 1 — WASAPI pipeline | ✅ |
-| 2 — DeepFilterNet3 ONNX | ✅ |
-| 3 — Custom APO driver (no VB-Cable needed) | ⏳ |
-| 4 — AEC, profiles, UI polish | ⏳ |
+| 2 — DeepFilterNet3 ONNX integration | ✅ |
+| 3 — Custom APO driver (standalone, no VB-Cable) | ✅ |
+| 4 — Acoustic Echo Cancellation | ✅ |
+| 5 — Per-app profiles & settings | ✅ |
+| 6 — MSI installer + CI/CD | ✅ |
 
 ## Contributing
 

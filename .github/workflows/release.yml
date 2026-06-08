@@ -26,39 +26,56 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore dependencies
-        run: dotnet restore ${{ env.SOLUTION }}
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-      - name: Build (Release)
-        run: dotnet build ${{ env.SOLUTION }} -c Release --no-restore
-
-      - name: Package
+      - name: Detect Windows SDK version
         shell: pwsh
         run: |
-          $suffix = "${{ github.ref_name }}"
-          $zipName = "ClearMic-${suffix}.zip"
-          Add-Content -Path $env:GITHUB_ENV -Value "ZIP_NAME=${zipName}"
+          $sdks = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include\*" -Directory `
+            | Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } `
+            | Sort-Object Name -Descending
+          if (-not $sdks) { throw "No Windows SDK found" }
+          $ver = $sdks[0].Name
+          Write-Host "Windows SDK: $ver"
+          Add-Content -Path $env:GITHUB_ENV -Value "WIN_SDK_VER=$ver"
 
-          $releaseDir = "ClearMic.App/bin/Release/net8.0-windows"
-          $staging = "staging/ClearMic"
-          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+      - name: Restore .NET dependencies
+        run: dotnet restore ${{ env.SOLUTION }}
 
-          # App + dependencies
-          Copy-Item "$releaseDir/*" $staging -Recurse -Exclude @("*.pdb", "*.xml")
+      - name: Build .NET solution (Release)
+        run: dotnet build ${{ env.SOLUTION }} -c Release --no-restore
 
-          # Denoiser model
-          $modelStaging = "$staging/models"
-          New-Item -ItemType Directory -Path $modelStaging -Force | Out-Null
-          Copy-Item "models/denoiser_model.onnx" $modelStaging
+      - name: Build ClearMicApo.dll (MSVC + WDK)
+        shell: pwsh
+        run: |
+          msbuild ClearMic.Driver/ClearMicApo.vcxproj `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:WindowsTargetPlatformVersion=${{ env.WIN_SDK_VER }}
 
-          # Compress
-          Compress-Archive -Path "staging/ClearMic/*" -DestinationPath $zipName -Force
+      - name: Publish ApoHost
+        shell: pwsh
+        run: |
+          dotnet publish ClearMic.ApoHost/ClearMic.ApoHost.csproj `
+            -c Release -r win-x64 --no-self-contained `
+            -o ClearMic.ApoHost/bin/Release/net8.0-windows/publish
 
-      - name: Upload artifact
+      - name: Install WiX
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix
+          wix eula accept wix7
+
+      - name: Build MSI
+        shell: pwsh
+        run: wix build -arch x64 -o ClearMicAPO.msi ClearMic.Installer/Package.wxs
+
+      - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ClearMic-Build
-          path: ClearMic-*.zip
+          name: ClearMic-MSI
+          path: ClearMicAPO.msi
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -68,16 +85,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download build artifact
+      - name: Download MSI artifact
         uses: actions/download-artifact@v4
         with:
-          name: ClearMic-Build
+          name: ClearMic-MSI
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: ClearMic ${{ github.ref_name }}
           body_path: CHANGELOG.md
-          files: ClearMic-*.zip
+          files: ClearMicAPO.msi
           draft: true
           prerelease: false
